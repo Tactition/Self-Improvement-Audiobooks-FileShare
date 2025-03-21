@@ -1,6 +1,3 @@
-  
-
-
 import sys
 import glob
 import importlib
@@ -52,7 +49,7 @@ loop = asyncio.get_event_loop()
 
 async def start():
     print('\n')
-    print('Initalizing Tech VJ Bot')
+    print('Self-Improvement-Audiobooks-FileShare')
     bot_info = await StreamBot.get_me()
     StreamBot.username = bot_info.username
     await initialize_clients()
@@ -66,11 +63,11 @@ async def start():
             load = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(load)
             sys.modules["plugins." + plugin_name] = load
-            print("Tech VJ Imported => " + plugin_name)
+            print("Tactition Imported => " + plugin_name)
     if ON_HEROKU:
         asyncio.create_task(ping_server())
     me = await StreamBot.get_me()
-    tz = pytz.timezone('Asia/Kolkata')
+    tz = pytz.timezone('Asia/Kashmir')
     today = date.today()
     now = datetime.now(tz)
     time = now.strftime("%H:%M:%S %p")
@@ -81,7 +78,7 @@ async def start():
     await web.TCPSite(app, bind_address, PORT).start()
     if CLONE_MODE == True:
         await restart_bots()
-    print("Bot Started Powered By @VJ_Botz")
+    print("Bot Started Powered By @Tactition")
     await idle()
 
  
