@@ -74,14 +74,21 @@ async def gen_link_s(bot, message):
             await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🖇️ sʜᴏʀᴛ ʟɪɴᴋ :- {short_link}</b>")
         else:
             await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🔗 ᴏʀɪɢɪɴᴀʟ ʟɪɴᴋ :- {share_link}</b>")
-    # If replied message is text, handle and save it.
+    
+    # If the replied message is text, generate a deep link for it.
     elif replied.text:
         text_content = replied.text.strip()
-        # Place your logic to save the text message here.
-        # For demonstration, we're just replying that the text was saved.
-        await message.reply(f"<b>⭕ Text message saved successfully:</b>\n{text_content}")
+        # Create a prefix to identify text deep links.
+        prefix = "text_"
+        # Encode the text content using URL-safe Base64 and strip trailing "=".
+        encoded_text = base64.urlsafe_b64encode(text_content.encode("utf-8")).decode("ascii").strip("=")
+        # Generate the deep link with the text prefix.
+        deep_link = f"https://t.me/{username}?start={prefix}{encoded_text}"
+        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ text link:</b>\n\n🔗 Link: {deep_link}")
+    
     else:
         return await message.reply("Unsupported message type. Please reply to a media or text message.")
+
 
 
 @Client.on_message(filters.command(['batch', 'pbatch']) & filters.create(allowed))
