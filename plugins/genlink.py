@@ -83,24 +83,6 @@ async def gen_link_s(bot, message):
         deep_link = f"https://t.me/{username}?start={prefix}{encoded_text}"
         link_msg = await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ text link:</b>\n\n🔗 Link: {deep_link}")
         
-        # If auto-delete mode is enabled, send a notice, wait, then delete the link message.
-        if AUTO_DELETE_MODE == True:
-            notice_msg = await bot.send_message(
-                chat_id=message.from_user.id, 
-                text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\nThis message will be deleted within <b><u>{AUTO_DELETE} Minutes</u></b> (Due to Copyright Issues).\n\n<b>Please forward the text to Saved Messages.</b>"
-            )
-            await asyncio.sleep(AUTO_DELETE_TIME)
-            try:
-                await link_msg.delete()
-            except Exception as e:
-                logger.error("Error deleting text link message: %s", e)
-            try:
-                await notice_msg.edit_text("<b>Message deleted successfully. You are always welcome to request again.</b>")
-            except Exception as e:
-                logger.error("Error editing auto-delete notice: %s", e)
-            return
-        else:
-            return await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ text link:</b>\n\n🔗 Link: {deep_link}")
     else:
         return await message.reply("Unsupported message type. Please reply to a media or text message.")
 
