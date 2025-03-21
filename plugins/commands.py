@@ -523,14 +523,15 @@ async def start_handler(bot: Client, message):
         param = message.command[1]
         if param.startswith("text_"):
             encoded_text = param[len("text_"):]
-            # Add padding if needed
+            # Add missing padding if needed (Base64 strings require a length multiple of 4)
             missing_padding = len(encoded_text) % 4
             if missing_padding:
                 encoded_text += "=" * (4 - missing_padding)
             try:
                 decoded_text = base64.urlsafe_b64decode(encoded_text.encode("ascii")).decode("utf-8")
+                # Send the saved text as a reply and store the message object in link_msg.
                 link_msg = await message.reply_text(f"<b>Here is the saved text:</b>\n\n{decoded_text}")
-
+                
                 # If auto-delete mode is enabled, send a notice, wait, then delete the link message.
                 if AUTO_DELETE_MODE == True:
                     notice_msg = await bot.send_message(
@@ -546,6 +547,10 @@ async def start_handler(bot: Client, message):
                         await notice_msg.edit_text("<b>Message deleted successfully. You are always welcome to request again.</b>")
                     except Exception as e:
                         logger.error("Error editing auto-delete notice: %s", e)
-                    return
-                else:
-                    return await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ text link:</b>\n\n🔗 Link: {deep_link}")
+                return
+            except Exception as e:
+                return await message.reply_text(f"Error decoding text: {e}")
+        else:
+            return await message.reply_text("Parameter not recognized.")
+    else:
+        return await message.reply_text("Welcome! Use the /link command to generate a shareable link.")
