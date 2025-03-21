@@ -67,7 +67,7 @@ WEBSITE_URL_MODE = bool(environ.get('WEBSITE_URL_MODE', False)) # Set True or Fa
 WEBSITE_URL = environ.get("WEBSITE_URL", "") # For More Information Check Video On Yt -
 
 # File Stream Config
-STREAM_MODE = bool(environ.get('STREAM_MODE', False)) # Set True or False
+STREAM_MODE = bool(environ.get('STREAM_MODE', True)) # Set True or False
 
 # If Stream Mode Is True Then Fill All Required Variable, If False Then Don't Fill.
 MULTI_CLIENT = True
@@ -77,6 +77,6 @@ if 'DYNO' in environ:
     ON_HEROKU = True
 else:
     ON_HEROKU = False
-URL = environ.get("URL", "https://secondary-almeria-zahidsempire-a721593c.koyeb.app/")
+URL = environ.get("URL", "https://fit-joelie-excellerators-04647018.koyeb.app/")
 
     
