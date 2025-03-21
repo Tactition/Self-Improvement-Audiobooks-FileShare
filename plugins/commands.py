@@ -529,10 +529,23 @@ async def start_handler(bot: Client, message):
                 encoded_text += "=" * (4 - missing_padding)
             try:
                 decoded_text = base64.urlsafe_b64decode(encoded_text.encode("ascii")).decode("utf-8")
-                return await message.reply_text(f"<b>Here is the saved text:</b>\n\n{decoded_text}")
-            except Exception as e:
-                return await message.reply_text(f"Error decoding text: {e}")
-        else:
-            return await message.reply_text("Parameter not recognized.")
-    else:
-        return await message.reply_text("Welcome! Use the /link command to generate a shareable link.")
+                link_msg = await message.reply_text(f"<b>Here is the saved text:</b>\n\n{decoded_text}")
+
+                # If auto-delete mode is enabled, send a notice, wait, then delete the link message.
+                if AUTO_DELETE_MODE == True:
+                    notice_msg = await bot.send_message(
+                        chat_id=message.from_user.id, 
+                        text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\nThis message will be deleted within <b><u>{AUTO_DELETE} Minutes</u></b> (Due to Copyright Issues).\n\n<b>Please forward the text to Saved Messages.</b>"
+                    )
+                    await asyncio.sleep(AUTO_DELETE_TIME)
+                    try:
+                        await link_msg.delete()
+                    except Exception as e:
+                        logger.error("Error deleting text link message: %s", e)
+                    try:
+                        await notice_msg.edit_text("<b>Message deleted successfully. You are always welcome to request again.</b>")
+                    except Exception as e:
+                        logger.error("Error editing auto-delete notice: %s", e)
+                    return
+                else:
+                    return await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ text link:</b>\n\n🔗 Link: {deep_link}")
