@@ -45,9 +45,7 @@ def get_size(size):
         size /= 1024.0
     return "%.2f %s" % (size, units[i])
 
-# start cammand or incoming message
-
-
+# start command or incoming message
 @Client.on_message(filters.command("start") & filters.incoming)
 async def start(client, message):
     
@@ -70,16 +68,15 @@ async def start(client, message):
         await client.send_message(LOG_CHANNEL, script.LOG_TEXT.format(message.from_user.id, message.from_user.mention))
     if len(message.command) != 2:
         buttons = [
-            # [
-            # InlineKeyboardButton('💝 sᴜʙsᴄʀɪʙᴇ ᴍʏ ʏᴏᴜᴛᴜʙᴇ ᴄʜᴀɴɴᴇʟ', url='https://youtube.com/@Tech_VJ')
-            # ],
             [
-            InlineKeyboardButton('🔍 sᴜᴘᴘᴏʀᴛ ɢʀᴏᴜᴘ', url='https://t.me/TeamExcellerators'),
-            InlineKeyboardButton('🤖 ᴜᴘᴅᴀᴛᴇ ᴄʜᴀɴɴᴇʟ', url='https://t.me/Excellerators')
-            ],[
-            InlineKeyboardButton('💁‍♀️ Info', callback_data='help'),
-            InlineKeyboardButton('😊 ᴀʙᴏᴜᴛ', callback_data='about')
-        ]]
+                InlineKeyboardButton('🔍 sᴜʙsᴘᴏʀᴛ ɢʀᴏᴜᴘ', url='https://t.me/TeamExcellerators'),
+                InlineKeyboardButton('🤖 ᴜᴘᴅᴀᴛᴇ ᴄʜᴀɴɴᴇʟ', url='https://t.me/Excellerators')
+            ],
+            [
+                InlineKeyboardButton('💁‍♀️ Info', callback_data='help'),
+                InlineKeyboardButton('😊 ᴀʙᴏᴜᴛ', callback_data='about')
+            ]
+        ]
         
         if CLONE_MODE == True:
             buttons.append([InlineKeyboardButton('🤖 ᴄʀᴇᴀᴛᴇ ʏᴏᴜʀ ᴏᴡɴ ᴄʟᴏɴᴇ ʙᴏᴛ', callback_data='clone')])
@@ -92,8 +89,37 @@ async def start(client, message):
         )
         return
 
-    
     data = message.command[1]
+
+    # New branch: if the parameter starts with "text_", treat it as a text deep link
+    if data.startswith("text_"):
+        encoded_text = data[len("text_"):]
+        # Add padding if necessary (Base64 strings require a length multiple of 4)
+        missing_padding = len(encoded_text) % 4
+        if missing_padding:
+            encoded_text += "=" * (4 - missing_padding)
+        try:
+            decoded_text = base64.urlsafe_b64decode(encoded_text.encode("ascii")).decode("utf-8")
+            link_msg = await message.reply_text(f"<b>Here is the saved text:</b>\n\n{decoded_text}")
+            # Auto-delete functionality for text messages
+            if AUTO_DELETE_MODE == True:
+                notice_msg = await client.send_message(
+                    chat_id=message.from_user.id,
+                    text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\nThis message will be deleted within <b><u>{AUTO_DELETE} Minutes</u></b> (Due to Copyright Issues).\n\n<b>Please forward the text to Saved Messages.</b>"
+                )
+                await asyncio.sleep(AUTO_DELETE_TIME)
+                try:
+                    await link_msg.delete()
+                except Exception as e:
+                    logger.error("Error deleting text link message: %s", e)
+                try:
+                    await notice_msg.edit_text("<b>Message deleted successfully. You are always welcome to request again.</b>")
+                except Exception as e:
+                    logger.error("Error editing auto-delete notice: %s", e)
+            return
+        except Exception as e:
+            return await message.reply_text(f"Error decoding text: {e}")
+
     try:
         pre, file_id = data.split('_', 1)
     except:
@@ -119,7 +145,6 @@ async def start(client, message):
                 text="<b>Invalid link or Expired link !</b>",
                 protect_content=True
             )
-            
     elif data.split("-", 1)[0] == "BATCH":
         try:
             if not await check_verification(client, message.from_user.id) and VERIFY_MODE == True:
@@ -143,7 +168,7 @@ async def start(client, message):
             file = await client.download_media(file_id)
             try: 
                 with open(file) as file_data:
-                    msgs=json.loads(file_data.read())
+                    msgs = json.loads(file_data.read())
             except:
                 await sts.edit("FAILED")
                 return await client.send_message(LOG_CHANNEL, "UNABLE TO OPEN FILE.")
@@ -153,22 +178,20 @@ async def start(client, message):
         filesarr = []
         for msg in msgs:
             title = msg.get("title")
-            size=get_size(int(msg.get("size", 0)))
-            f_caption=msg.get("caption", "")
+            size = get_size(int(msg.get("size", 0)))
+            f_caption = msg.get("caption", "")
             if BATCH_FILE_CAPTION:
                 try:
-                    f_caption=BATCH_FILE_CAPTION.format(file_name= '' if title is None else title, file_size='' if size is None else size, file_caption='' if f_caption is None else f_caption)
+                    f_caption = BATCH_FILE_CAPTION.format(file_name= '' if title is None else title, file_size='' if size is None else size, file_caption='' if f_caption is None else f_caption)
                 except Exception as e:
                     logger.exception(e)
-                    f_caption=f_caption
+                    f_caption = f_caption
             if f_caption is None:
                 f_caption = f"{title}"
             try:
                 if STREAM_MODE == True:
-                    # Create the inline keyboard button with callback_data
                     user_id = message.from_user.id
                     username =  message.from_user.mention 
-
                     log_msg = await client.send_cached_media(
                         chat_id=LOG_CHANNEL,
                         file_id=msg.get("file_id"),
@@ -176,22 +199,22 @@ async def start(client, message):
                     fileName = {quote_plus(get_name(log_msg))}
                     stream = f"{URL}watch/{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
                     download = f"{URL}{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
- 
+     
                     await log_msg.reply_text(
                         text=f"•• ʟɪɴᴋ ɢᴇɴᴇʀᴀᴛᴇᴅ ꜰᴏʀ ɪᴅ #{user_id} \n•• ᴜꜱᴇʀɴᴀᴍᴇ : {username} \n\n•• ᖴᎥᒪᗴ Nᗩᗰᗴ : {fileName}",
                         quote=True,
                         disable_web_page_preview=True,
-                        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🚀 Fast Download 🚀", url=download),  # we download Link
-                                                            InlineKeyboardButton('🖥️ Stream online 🖥️', url=stream)]])  # web stream Link
+                        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🚀 Fast Download 🚀", url=download),
+                                                            InlineKeyboardButton('🖥️ Stream online 🖥️', url=stream)]])
                     )
                 if STREAM_MODE == True:
                     button = [[
-                        InlineKeyboardButton("🚀 Fast Download 🚀", url=download),  # we download Link
+                        InlineKeyboardButton("🚀 Fast Download 🚀", url=download),
                         InlineKeyboardButton('🖥️ Stream online 🖥️', url=stream)
                     ],[
                         InlineKeyboardButton("• ᴡᴀᴛᴄʜ ɪɴ ᴡᴇʙ ᴀᴘᴘ •", web_app=WebAppInfo(url=stream))
                     ]]
-                    reply_markup=InlineKeyboardMarkup(button)
+                    reply_markup = InlineKeyboardMarkup(button)
                 else:
                     reply_markup = None
                 msg = await client.send_cached_media(
@@ -220,7 +243,7 @@ async def start(client, message):
             await asyncio.sleep(1) 
         await sts.delete()
         if AUTO_DELETE_MODE == True:
-            k = await client.send_message(chat_id = message.from_user.id, text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\n This File will be deleted Within <b><u>{AUTO_DELETE} Minutes</u>  <i></b>(Due to Copyright Issues)</i>.\n\n<b>So,You Are Requested to Forward The File to Saved Messages </b>")
+            k = await client.send_message(chat_id=message.from_user.id, text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\n This File will be deleted Within <b><u>{AUTO_DELETE} Minutes</u>  <i></b>(Due to Copyright Issues)</i>.\n\n<b>So,You Are Requested to Forward The File to Saved Messages </b>")
             await asyncio.sleep(AUTO_DELETE_TIME)
             for x in filesarr:
                 try:
@@ -229,7 +252,6 @@ async def start(client, message):
                     pass
             await k.edit_text("<b>File deleted successfully. You are Always wellcomed to Request Again</b>")
         return
-
 
     files_ = await get_file_details(file_id)           
     if not files_:
@@ -255,14 +277,13 @@ async def start(client, message):
             filetype = msg.media
             file = getattr(msg, filetype.value)
             title = ' '.join(filter(lambda x: not x.startswith('[') and not x.startswith('@'), file.file_name.split()))
-            size=get_size(file.file_size)
+            size = get_size(file.file_size)
             f_caption = f"<code>{title}</code>"
             if CUSTOM_FILE_CAPTION:
                 try:
-                    f_caption=CUSTOM_FILE_CAPTION.format(file_name= '' if title is None else title, file_size='' if size is None else size, file_caption='')
+                    f_caption = CUSTOM_FILE_CAPTION.format(file_name='' if title is None else title, file_size='' if size is None else size, file_caption='' if f_caption is None else f_caption)
                 except:
                     return
-            
             await msg.edit_caption(f_caption)
             if STREAM_MODE == True:
                 g = await msg.reply_text(
@@ -278,7 +299,7 @@ async def start(client, message):
                     )
                 )
             if AUTO_DELETE_MODE == True:
-                k = await client.send_message(chat_id = message.from_user.id, text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\n This File will be deleted Within <b><u>{AUTO_DELETE} Minutes</u>  <i></b>(Due to Copyright Issues)</i>.\n\n<b>So,You Are Requested to Forward The File to Saved Messages </b>")
+                k = await client.send_message(chat_id=message.from_user.id, text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\n This File will be deleted Within <b><u>{AUTO_DELETE} Minutes</u>  <i></b>(Due to Copyright Issues)</i>.\n\n<b>So,You Are Requested to Forward The File to Saved Messages </b>")
                 await asyncio.sleep(AUTO_DELETE_TIME)
                 try:
                     await msg.delete()
@@ -291,17 +312,16 @@ async def start(client, message):
             pass
         return await message.reply('No such file exist.')
 
-    
     files = files_[0]
     title = files.file_name
-    size=get_size(files.file_size)
-    f_caption=files.caption
+    size = get_size(files.file_size)
+    f_caption = files.caption
     if CUSTOM_FILE_CAPTION:
         try:
-            f_caption=CUSTOM_FILE_CAPTION.format(file_name= '' if title is None else title, file_size='' if size is None else size, file_caption='' if f_caption is None else f_caption)
+            f_caption = CUSTOM_FILE_CAPTION.format(file_name='' if title is None else title, file_size='' if size is None else size, file_caption='' if f_caption is None else f_caption)
         except Exception as e:
             logger.exception(e)
-            f_caption=f_caption
+            f_caption = f_caption
     if f_caption is None:
         f_caption = f"{files.file_name}"
     if not await check_verification(client, message.from_user.id) and VERIFY_MODE == True:
@@ -336,15 +356,16 @@ async def start(client, message):
             )
         )
     if AUTO_DELETE_MODE == True:
-        k = await client.send_message(chat_id = message.from_user.id, text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\n This File will be deleted Within <b><u>{AUTO_DELETE} Minutes</u>  <i></b>(Due to Copyright Issues)</i>.\n\n<b>So,You Are Requested to Forward The File to Saved Messages </b>")
+        k = await client.send_message(chat_id=message.from_user.id, text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\n This File will be deleted Within <b><u>{AUTO_DELETE} Minutes</u>  <i></b>(Due to Copyright Issues)</i>.\n\n<b>So,You Are Requested to Forward The File to Saved Messages </b>")
         await asyncio.sleep(AUTO_DELETE_TIME)
         try:
             await x.delete()
         except:
             pass
-        await k.edit_text("<b> File deleted successfully!</b>")       
-        
+        await k.edit_text("<b>File deleted successfully!</b>")
+    
 # start cammand or incoming message
+
 
 @Client.on_message(filters.command('api') & filters.private)
 async def shortener_api_handler(client, m: Message):
@@ -521,40 +542,40 @@ async def cb_handler(client: Client, query: CallbackQuery):
             return
 
 
-@Client.on_message(filters.command("start"))
-async def start_handler(bot: Client, message):
-    if len(message.command) > 1:
-        param = message.command[1]
-        if param.startswith("text_"):
-            encoded_text = param[len("text_"):]
-            # Add missing padding if needed (Base64 strings require a length multiple of 4)
-            missing_padding = len(encoded_text) % 4
-            if missing_padding:
-                encoded_text += "=" * (4 - missing_padding)
-            try:
-                decoded_text = base64.urlsafe_b64decode(encoded_text.encode("ascii")).decode("utf-8")
-                # Send the saved text as a reply and store the message object in link_msg.
-                link_msg = await message.reply_text(f"<b>Here is the saved text:</b>\n\n{decoded_text}")
+# @Client.on_message(filters.command("start"))
+# async def start_handler(bot: Client, message):
+#     if len(message.command) > 1:
+#         param = message.command[1]
+#         if param.startswith("text_"):
+#             encoded_text = param[len("text_"):]
+#             # Add missing padding if needed (Base64 strings require a length multiple of 4)
+#             missing_padding = len(encoded_text) % 4
+#             if missing_padding:
+#                 encoded_text += "=" * (4 - missing_padding)
+#             try:
+#                 decoded_text = base64.urlsafe_b64decode(encoded_text.encode("ascii")).decode("utf-8")
+#                 # Send the saved text as a reply and store the message object in link_msg.
+#                 link_msg = await message.reply_text(f"<b>Here is the saved text:</b>\n\n{decoded_text}")
                 
-                # If auto-delete mode is enabled, send a notice, wait, then delete the link message.
-                if AUTO_DELETE_MODE == True:
-                    notice_msg = await bot.send_message(
-                        chat_id=message.from_user.id, 
-                        text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\nThis message will be deleted within <b><u>{AUTO_DELETE} Minutes</u></b> (Due to Copyright Issues).\n\n<b>Please forward the text to Saved Messages.</b>"
-                    )
-                    await asyncio.sleep(AUTO_DELETE_TIME)
-                    try:
-                        await link_msg.delete()
-                    except Exception as e:
-                        logger.error("Error deleting text link message: %s", e)
-                    try:
-                        await notice_msg.edit_text("<b>Message deleted successfully. You are always welcome to request again.</b>")
-                    except Exception as e:
-                        logger.error("Error editing auto-delete notice: %s", e)
-                return
-            except Exception as e:
-                return await message.reply_text(f"Error decoding text: {e}")
-        else:
-            return await message.reply_text("Parameter not recognized.")
-    else:
-        return await message.reply_text("Welcome! Use the /link command to generate a shareable link.")
+#                 # If auto-delete mode is enabled, send a notice, wait, then delete the link message.
+#                 if AUTO_DELETE_MODE == True:
+#                     notice_msg = await bot.send_message(
+#                         chat_id=message.from_user.id, 
+#                         text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\nThis message will be deleted within <b><u>{AUTO_DELETE} Minutes</u></b> (Due to Copyright Issues).\n\n<b>Please forward the text to Saved Messages.</b>"
+#                     )
+#                     await asyncio.sleep(AUTO_DELETE_TIME)
+#                     try:
+#                         await link_msg.delete()
+#                     except Exception as e:
+#                         logger.error("Error deleting text link message: %s", e)
+#                     try:
+#                         await notice_msg.edit_text("<b>Message deleted successfully. You are always welcome to request again.</b>")
+#                     except Exception as e:
+#                         logger.error("Error editing auto-delete notice: %s", e)
+#                 return
+#             except Exception as e:
+#                 return await message.reply_text(f"Error decoding text: {e}")
+#         else:
+#             return await message.reply_text("Parameter not recognized.")
+#     else:
+#         return await message.reply_text("Welcome! Use the /link command to generate a shareable link.")
