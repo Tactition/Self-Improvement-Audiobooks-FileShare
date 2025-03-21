@@ -516,3 +516,23 @@ async def cb_handler(client: Client, query: CallbackQuery):
             await query.answer(f"☣something went wrong\n\n{e}", show_alert=True)
             return
 
+
+@Client.on_message(filters.command("start"))
+async def start_handler(bot: Client, message):
+    if len(message.command) > 1:
+        param = message.command[1]
+        if param.startswith("text_"):
+            encoded_text = param[len("text_"):]
+            # Add padding if needed
+            missing_padding = len(encoded_text) % 4
+            if missing_padding:
+                encoded_text += "=" * (4 - missing_padding)
+            try:
+                decoded_text = base64.urlsafe_b64decode(encoded_text.encode("ascii")).decode("utf-8")
+                return await message.reply_text(f"<b>Here is the saved text:</b>\n\n{decoded_text}")
+            except Exception as e:
+                return await message.reply_text(f"Error decoding text: {e}")
+        else:
+            return await message.reply_text("Parameter not recognized.")
+    else:
+        return await message.reply_text("Welcome! Use the /link command to generate a shareable link.")
