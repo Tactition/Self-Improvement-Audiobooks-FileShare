@@ -77,7 +77,7 @@ First Send /clone command then follow below steps.
 
     HELP_TXT = """<b>💢 This is a MultiPurpose Bot Developed By @tactition
 
-🔻 Its Main Purpose is To Provide You With High quality Content Like Course, Softwares And other Important Stuff
+🔻 Its Main Purpose is To Provide You With High quality Content Like Course, Audiobooks Educational Videos/Shorts And other Important Stuff
 
 🔻 It Will Serve You 24*7 With His Divine Content
 

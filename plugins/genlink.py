@@ -34,7 +34,7 @@ async def incoming_gen_link(bot, message):
     user_id = message.from_user.id
     user = await get_user(user_id)
     if WEBSITE_URL_MODE == True:
-        share_link = f"{WEBSITE_URL}?Tech_VJ={outstr}"
+        share_link = f"{WEBSITE_URL}?Zahid={outstr}"
     else:
         share_link = f"https://t.me/{username}?start={outstr}"
     if user["base_site"] and user["shortener_api"] != None:
@@ -50,29 +50,42 @@ async def gen_link_s(bot, message):
     replied = message.reply_to_message
     if not replied:
         return await message.reply('Reply to a message to get a shareable link.')
-    file_type = replied.media
-    if file_type not in [enums.MessageMediaType.VIDEO, enums.MessageMediaType.AUDIO, enums.MessageMediaType.DOCUMENT]:
-        return await message.reply("**ʀᴇᴘʟʏ ᴛᴏ ᴀ sᴜᴘᴘᴏʀᴛᴇᴅ ᴍᴇᴅɪᴀ**")
-    if message.has_protected_content and message.chat.id not in ADMINS:
-        return await message.reply("okDa")
 
+    # If the replied message contains media, process as before.
+    if replied.media:
+        file_type = replied.media
+        if file_type not in [enums.MessageMediaType.VIDEO, enums.MessageMediaType.AUDIO, enums.MessageMediaType.DOCUMENT]:
+            return await message.reply("**ʀᴇᴘʟʏ ᴛᴏ ᴀ sᴜᴘᴘᴏʀᴛᴇᴅ ᴍᴇᴅɪᴀ**")
+        if message.has_protected_content and message.chat.id not in ADMINS:
+            return await message.reply("okDa")
+
+        file_id, ref = unpack_new_file_id((getattr(replied, file_type.value)).file_id)
+        prefix = 'filep_' if message.text.lower().strip() == "/plink" else 'file_'
+        string = prefix + file_id
+        outstr = base64.urlsafe_b64encode(string.encode("ascii")).decode().strip("=")
+        user_id = message.from_user.id
+        user = await get_user(user_id)
+        if WEBSITE_URL_MODE:
+            share_link = f"{WEBSITE_URL}?Zahid={outstr}"
+        else:
+            share_link = f"https://t.me/{username}?start={outstr}"
+        if user["base_site"] and user["shortener_api"] is not None:
+            short_link = await get_short_link(user, share_link)
+            await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🖇️ sʜᴏʀᴛ ʟɪɴᴋ :- {short_link}</b>")
+        else:
+            await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🔗 ᴏʀɪɢɪɴᴀʟ ʟɪɴᴋ :- {share_link}</b>")
     
-    file_id, ref = unpack_new_file_id((getattr(replied, file_type.value)).file_id)
-    string = 'filep_' if message.text.lower().strip() == "/plink" else 'file_'
-    string += file_id
-    outstr = base64.urlsafe_b64encode(string.encode("ascii")).decode().strip("=")
-    user_id = message.from_user.id
-    user = await get_user(user_id)
-    if WEBSITE_URL_MODE == True:
-        share_link = f"{WEBSITE_URL}?Tech_VJ={outstr}"
-    else:
-        share_link = f"https://t.me/{username}?start={outstr}"
-    if user["base_site"] and user["shortener_api"] != None:
-        short_link = await get_short_link(user, share_link)
-        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🖇️ sʜᴏʀᴛ ʟɪɴᴋ :- {short_link}</b>")
-    else:
-        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🔗 ᴏʀɪɢɪɴᴀʟ ʟɪɴᴋ :- {share_link}</b>")
+    # If the replied message is text, generate a deep link for it.
+    elif replied.text:
+        text_content = replied.text.strip()
+        prefix = "text_"
+        encoded_text = base64.urlsafe_b64encode(text_content.encode("utf-8")).decode("ascii").strip("=")
+        deep_link = f"https://t.me/{username}?start={prefix}{encoded_text}"
+        link_msg = await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ text link:</b>\n\n🔗 Link: {deep_link}")
         
+    else:
+        return await message.reply("Unsupported message type. Please reply to a media or text message.")
+
 
 
 
@@ -165,7 +178,7 @@ async def gen_link_batch(bot, message):
     user_id = message.from_user.id
     user = await get_user(user_id)
     if WEBSITE_URL_MODE == True:
-        share_link = f"{WEBSITE_URL}?Tech_VJ=BATCH-{file_id}"
+        share_link = f"{WEBSITE_URL}?Zahid=BATCH-{file_id}"
     else:
         share_link = f"https://t.me/{username}?start=BATCH-{file_id}"
     if user["base_site"] and user["shortener_api"] != None:
