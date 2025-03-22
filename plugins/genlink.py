@@ -55,72 +55,49 @@ async def incoming_gen_link(bot, message):
         
 
 @Client.on_message(filters.command(['link', 'plink']) & filters.create(allowed))
-async def generate_link(bot, message):
-    # Get username of the bot
+async def gen_link_s(bot, message):
     username = (await bot.get_me()).username
-    replied_message = message.reply_to_message
-
-    # Check if there's a message being replied to
-    if not replied_message:
+    replied = message.reply_to_message
+    if not replied:
         return await message.reply('Reply to a message to get a shareable link.')
 
-    # Dictionary mapping media types to URL prefixes
-    media_prefixes = {
-        enums.MessageMediaType.VIDEO: 'file_',
-        enums.MessageMediaType.AUDIO: 'file_',
-        enums.MessageMediaType.DOCUMENT: 'file_',
-        enums.MessageMediaType.PHOTO: 'photo_',
-        enums.MessageMediaType.STICKER: 'sticker_',
-        enums.MessageMediaType.VOICE: 'voice_',
-        enums.MessageMediaType.ANIMATION: 'animation_',
-        # You can add more supported media types here if necessary
-    }
+    # If the replied message contains media, process as before.
+    if replied.media:
+        file_type = replied.media
+        if file_type not in [enums.MessageMediaType.VIDEO, enums.MessageMediaType.AUDIO, enums.MessageMediaType.DOCUMENT]:
+            return await message.reply("**ʀᴇᴘʟʏ ᴛᴏ sᴜᴘᴘᴏʀᴛᴇᴅ ᴍᴇᴅɪᴀ**")
+        if message.has_protected_content and message.chat.id not in ADMINS:
+            return await message.reply("okDa")
 
-    if replied_message.media:
-        media_type = replied_message.media
-        # Check if media type is supported
-        if media_type in media_prefixes:
-            # Check if the message has protected content
-            if message.has_protected_content and message.chat.id not in ADMINS:
-                return await message.reply("You do not have permission to access this content.")
-
-            # Get the file ID based on media type and unpack it
-            file_id, ref = unpack_new_file_id((getattr(replied_message, media_type.value)).file_id)
-            prefix = media_prefixes[media_type]
-            link_string = f"{prefix}{file_id}"
-
-            # Create a base64 encoded link string
-            encoded_link = base64.urlsafe_b64encode(link_string.encode("ascii")).decode().strip("=")
-
-            # Create the share link based on the user's website preference
-            share_link = await create_share_link(username, encoded_link)
-            await send_link_response(message, share_link)
-
-    elif replied_message.text or replied_message.caption or getattr(replied_message, 'text_html', None):
-        # Handle text or caption replies
-        text_content = replied_message.text or replied_message.caption or replied_message.text_html
-        encoded_text = await encode(text_content.strip())  # Asynchronously encode text
-
-        # Generate deep link based on encoded text
-        deep_link = f"https://t.me/{username}?start=text_{encoded_text}"
-        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ text link:</b>\n\n🔗 Link: {deep_link}")
-
-async def create_share_link(username, encoded_name):
-    """ Create the share link based on whether to use a shortened URL or not. """
-    if WEBSITE_URL_MODE:
-        return f"{WEBSITE_URL}?Zahid={encoded_name}"
-    return f"https://t.me/{username}?start={encoded_name}"
-
-async def send_link_response(message, share_link):
-    """ Send the generated link message to the user depending on their settings. """
-    user_id = message.from_user.id
-    user_info = await get_user(user_id)
+        file_id, ref = unpack_new_file_id((getattr(replied, file_type.value)).file_id)
+        prefix = 'filep_' if message.text.lower().strip() == "/plink" else 'file_'
+        string = prefix + file_id
+        outstr = base64.urlsafe_b64encode(string.encode("ascii")).decode().strip("=")
+        user_id = message.from_user.id
+        user = await get_user(user_id)
+        if WEBSITE_URL_MODE:
+            share_link = f"{WEBSITE_URL}?Zahid={outstr}"
+        else:
+            share_link = f"https://t.me/{username}?start={outstr}"
+        if user["base_site"] and user["shortener_api"] is not None:
+            short_link = await get_short_link(user, share_link)
+            await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🖇️ sʜᴏʀᴛ ʟɪɴᴋ :- {short_link}</b>")
+        else:
+            await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🔗 ᴏʀɪɢɪɴᴀʟ ʟɪɴᴋ :- {share_link}</b>")
     
-    if user_info.get("base_site") and user_info.get("shortener_api") is not None:
-        short_link = await get_short_link(user_info, share_link)
-        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:</b>\n\n🖇️ sʜᴏʀᴛ ʟɪɴᴋ :- {short_link}")
-    else:
-        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:</b>\n\n🔗 ᴏʀɪɢɪɴᴀʟ ʟɪɴᴋ :- {share_link}")
+       # If the replied message is text or has a caption (formatted text), generate a deep link for it.
+       # If the replied message is text or has a caption (formatted text), generate a deep link for it.
+    elif replied.text or replied.caption or getattr(replied, 'text_html', None):
+        # Use text_html if available, otherwise fallback to text or caption.
+        text_content = replied.text if replied.text else (replied.caption if replied.caption else replied.text_html)
+        text_content = text_content.strip()
+        prefix = "text_"
+        # Use the asynchronous encode function to encode the text
+        encoded_text = await encode(text_content)
+        deep_link = f"https://t.me/{username}?start={prefix}{encoded_text}"
+        link_msg = await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ text link:</b>\n\n🔗 Link: {deep_link}")
+
+
 
 
 
