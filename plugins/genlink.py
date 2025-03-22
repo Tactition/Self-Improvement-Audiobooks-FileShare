@@ -1,90 +1,100 @@
 import re
-from pyrogram import filters, Client, enums
-from pyrogram.errors.exceptions.bad_request_400 import ChannelInvalid, UsernameInvalid, UsernameNotModified
-from config import ADMINS, LOG_CHANNEL, PUBLIC_FILE_STORE, WEBSITE_URL, WEBSITE_URL_MODE
-from plugins.database import unpack_new_file_id
-from plugins.users_api import get_user, get_short_link
-import re
 import os
 import json
 import base64
 import logging
+from typing import Optional, Tuple, Dict, Any
+from pyrogram import filters, Client, enums
+from pyrogram.types import Message
+from pyrogram.errors.exceptions.bad_request_400 import ChannelInvalid, UsernameInvalid, UsernameNotModified
+from config import ADMINS, LOG_CHANNEL, PUBLIC_FILE_STORE, WEBSITE_URL, WEBSITE_URL_MODE
+from plugins.database import unpack_new_file_id
+from plugins.users_api import get_user, get_short_link
 
-
-
+# Configure logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-async def allowed(_, __, message):
-    if PUBLIC_FILE_STORE:
-        return True
-    if message.from_user and message.from_user.id in ADMINS:
-        return True
-    return False
+class LinkGenerator:
+    def __init__(self, bot: Client, message: Message):
+        self.bot = bot
+        self.message = message
+        self.username = None
 
+    async def get_bot_username(self) -> str:
+        if not self.username:
+            self.username = (await self.bot.get_me()).username
+        return self.username
+
+    async def generate_share_link(self, file_id: str, is_batch: bool = False) -> str:
+        username = await self.get_bot_username()
+        if WEBSITE_URL_MODE:
+            prefix = "BATCH-" if is_batch else ""
+            return f"{WEBSITE_URL}?Zahid={prefix}{file_id}"
+        return f"https://t.me/{username}?start={'BATCH-' if is_batch else ''}{file_id}"
+
+    async def send_link_message(self, share_link: str, user: Dict[str, Any], 
+                              additional_text: str = "") -> Message:
+        if user["base_site"] and user["shortener_api"]:
+            short_link = await get_short_link(user, share_link)
+            link_text = f"🖇️ sʜᴏʀᴛ ʟɪɴᴋ :- {short_link}"
+        else:
+            link_text = f"🔗 ᴏʀɪɢɪɴᴀʟ ʟɪɴᴋ :- {share_link}"
+        
+        return await self.message.reply(
+            f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n{additional_text}{link_text}</b>"
+        )
+
+async def allowed(_, __, message: Message) -> bool:
+    return PUBLIC_FILE_STORE or (message.from_user and message.from_user.id in ADMINS)
 
 @Client.on_message((filters.document | filters.video | filters.audio) & filters.private & filters.create(allowed))
-async def incoming_gen_link(bot, message):
-    username = (await bot.get_me()).username
+async def incoming_gen_link(bot: Client, message: Message):
+    link_gen = LinkGenerator(bot, message)
     file_type = message.media
-    file_id, ref = unpack_new_file_id((getattr(message, file_type.value)).file_id)
-    string = 'file_'
-    string += file_id
+    file_id, _ = unpack_new_file_id((getattr(message, file_type.value)).file_id)
+    
+    string = f'file_{file_id}'
     outstr = base64.urlsafe_b64encode(string.encode("ascii")).decode().strip("=")
-    user_id = message.from_user.id
-    user = await get_user(user_id)
-    if WEBSITE_URL_MODE == True:
-        share_link = f"{WEBSITE_URL}?Zahid={outstr}"
-    else:
-        share_link = f"https://t.me/{username}?start={outstr}"
-    if user["base_site"] and user["shortener_api"] != None:
-        short_link = await get_short_link(user, share_link)
-        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🖇️ sʜᴏʀᴛ ʟɪɴᴋ :- {short_link}</b>")
-    else:
-        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🔗 ᴏʀɪɢɪɴᴀʟ ʟɪɴᴋ :- {share_link}</b>")
-        
+    user = await get_user(message.from_user.id)
+    share_link = await link_gen.generate_share_link(outstr)
+    await link_gen.send_link_message(share_link, user)
 
 @Client.on_message(filters.command(['link', 'plink']) & filters.create(allowed))
-async def gen_link_s(bot, message):
-    username = (await bot.get_me()).username
+async def gen_link_s(bot: Client, message: Message):
+    link_gen = LinkGenerator(bot, message)
     replied = message.reply_to_message
     if not replied:
         return await message.reply('Reply to a message to get a shareable link.')
 
-    # If the replied message contains media, process as before.
     if replied.media:
+        # Handle media messages
         file_type = replied.media
-        if file_type not in [enums.MessageMediaType.VIDEO, enums.MessageMediaType.AUDIO, enums.MessageMediaType.DOCUMENT]:
+        if file_type not in [enums.MessageMediaType.VIDEO, enums.MessageMediaType.AUDIO, 
+                            enums.MessageMediaType.DOCUMENT]:
             return await message.reply("**ʀᴇᴘʟʏ ᴛᴏ ᴀ sᴜᴘᴘᴏʀᴛᴇᴅ ᴍᴇᴅɪᴀ**")
+        
         if message.has_protected_content and message.chat.id not in ADMINS:
             return await message.reply("okDa")
 
-        file_id, ref = unpack_new_file_id((getattr(replied, file_type.value)).file_id)
+        file_id, _ = unpack_new_file_id((getattr(replied, file_type.value)).file_id)
         prefix = 'filep_' if message.text.lower().strip() == "/plink" else 'file_'
-        string = prefix + file_id
-        outstr = base64.urlsafe_b64encode(string.encode("ascii")).decode().strip("=")
-        user_id = message.from_user.id
-        user = await get_user(user_id)
-        if WEBSITE_URL_MODE:
-            share_link = f"{WEBSITE_URL}?Zahid={outstr}"
-        else:
-            share_link = f"https://t.me/{username}?start={outstr}"
-        if user["base_site"] and user["shortener_api"] is not None:
-            short_link = await get_short_link(user, share_link)
-            await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🖇️ sʜᴏʀᴛ ʟɪɴᴋ :- {short_link}</b>")
-        else:
-            await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🔗 ᴏʀɪɢɪɴᴀʟ ʟɪɴᴋ :- {share_link}</b>")
-    
-    # If the replied message is text, generate a deep link for it.
-    elif replied.text:
-        text_content = replied.text.strip()
-        prefix = "text_"
-        encoded_text = base64.urlsafe_b64encode(text_content.encode("utf-8")).decode("ascii").strip("=")
-        deep_link = f"https://t.me/{username}?start={prefix}{encoded_text}"
-        link_msg = await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ text link:</b>\n\n🔗 Link: {deep_link}")
+        outstr = base64.urlsafe_b64encode(f"{prefix}{file_id}".encode("ascii")).decode().strip("=")
         
+        user = await get_user(message.from_user.id)
+        share_link = await link_gen.generate_share_link(outstr)
+        await link_gen.send_link_message(share_link, user)
+
+    elif replied.text:
+        # Handle text messages
+        text_content = replied.text.strip()
+        encoded_text = base64.urlsafe_b64encode(text_content.encode("utf-8")).decode("ascii").strip("=")
+        username = await link_gen.get_bot_username()
+        deep_link = f"https://t.me/{username}?start=text_{encoded_text}"
+        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ text link:</b>\n\n🔗 Link: {deep_link}")
+    
     else:
-        return await message.reply("Unsupported message type. Please reply to a media or text message.")
+        await message.reply("Unsupported message type. Please reply to a media or text message.")
 
 
 
