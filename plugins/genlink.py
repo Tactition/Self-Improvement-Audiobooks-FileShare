@@ -75,9 +75,10 @@ async def gen_link_s(bot, message):
         else:
             await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🔗 ᴏʀɪɢɪɴᴀʟ ʟɪɴᴋ :- {share_link}</b>")
     
-    # If the replied message is text, generate a deep link for it.
-    elif replied.text:
-        text_content = replied.text.strip()
+    # If the replied message is text or has a caption (formatted text), generate a deep link for it.
+    elif replied.text or replied.caption:
+        text_content = replied.text if replied.text else replied.caption
+        text_content = text_content.strip()
         prefix = "text_"
         encoded_text = base64.urlsafe_b64encode(text_content.encode("utf-8")).decode("ascii").strip("=")
         deep_link = f"https://t.me/{username}?start={prefix}{encoded_text}"
@@ -85,6 +86,7 @@ async def gen_link_s(bot, message):
         
     else:
         return await message.reply("Unsupported message type. Please reply to a media or text message.")
+
 
 
 
