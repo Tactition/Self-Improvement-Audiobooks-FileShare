@@ -14,7 +14,7 @@ from pyrogram import Client, __version__, idle, types, enums
 from pyrogram.raw.all import layer
 from pyrogram.errors.exceptions.bad_request_400 import ChannelInvalid, UsernameInvalid, UsernameNotModified
 
-from config import LOG_CHANNEL, ON_HEROKU, CLONE_MODE, PORT, ADMINS
+from config import LOG_CHANNEL, ON_HEROKU, CLONE_MODE, PORT, ADMINS, AUTH_CHANNEL, CLONE_MODE, VERIFY_MODE, VERIFY_TUTORIAL, AUTO_DELETE_MODE, AUTO_DELETE, AUTO_DELETE_TIME, STREAM_MODE, WEBSITE_URL, WEBSITE_URL_MODE
 from Script import script 
 from TechVJ.server import web_server
 from plugins.clone import restart_bots
@@ -40,10 +40,44 @@ logging.getLogger("aiohttp.web").setLevel(logging.ERROR)
 ppath = "plugins/*.py"
 files = glob.glob(ppath)
 
-# Start the default client (StreamBot)
-StreamBot.start()
+# --- Helper Functions ---
+async def encode(string):
+    string_bytes = string.encode("utf-8")
+    base64_bytes = base64.urlsafe_b64encode(string_bytes)
+    base64_string = base64_bytes.decode("ascii").strip("=")
+    return base64_string
 
+async def decode(base64_string):
+    base64_string = base64_string.strip("=")
+    base64_bytes = (base64_string + "=" * (-len(base64_string) % 4)).encode("ascii")
+    string_bytes = base64.urlsafe_b64decode(base64_bytes)
+    string = string_bytes.decode("utf-8")
+    return string
+
+async def is_subscribed(bot, message, channels):
+    btn = []
+    for id in channels:
+        chat = await bot.get_chat(int(id))
+        try:
+            await bot.get_chat_member(id, message.from_user.id)
+        except Exception:
+            btn.append([InlineKeyboardButton(f'Join {chat.title}', url=chat.invite_link)])
+    return btn
+
+def get_size(size):
+    units = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB"]
+    size = float(size)
+    i = 0
+    while size >= 1024.0 and i < len(units) - 1:
+        i += 1
+        size /= 1024.0
+    return "%.2f %s" % (size, units[i])
+
+# --- Main Start Function ---
 async def start():
+    # Start StreamBot using the current event loop.
+    await StreamBot.start()
+
     print('\n')
     print('Initializing Tactitions file store Bot')
     bot_info = await StreamBot.get_me()
@@ -56,7 +90,7 @@ async def start():
             patt = Path(a.name)
             plugin_name = patt.stem.replace(".py", "")
             plugins_dir = Path(f"plugins/{plugin_name}.py")
-            import_path = "plugins.{}".format(plugin_name)
+            import_path = f"plugins.{plugin_name}"
             spec = importlib.util.spec_from_file_location(import_path, plugins_dir)
             load = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(load)
@@ -66,7 +100,6 @@ async def start():
     if ON_HEROKU:
         asyncio.create_task(ping_server())
 
-    me = await StreamBot.get_me()
     tz = pytz.timezone('Asia/Kolkata')
     today = date.today()
     now = datetime.now(tz)
