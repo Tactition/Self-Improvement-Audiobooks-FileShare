@@ -1,4 +1,3 @@
-
 import os
 import logging
 import random
@@ -21,20 +20,6 @@ from TechVJ.utils.file_properties import get_name, get_hash, get_media_file_size
 logger = logging.getLogger(__name__)
 
 BATCH_FILES = {}
-
-# --- Helper Functions ---
-async def encode(string):
-    string_bytes = string.encode("utf-8")
-    base64_bytes = base64.urlsafe_b64encode(string_bytes)
-    base64_string = base64_bytes.decode("ascii").strip("=")
-    return base64_string
-
-async def decode(base64_string):
-    base64_string = base64_string.strip("=")
-    base64_bytes = (base64_string + "=" * (-len(base64_string) % 4)).encode("ascii")
-    string_bytes = base64.urlsafe_b64decode(base64_bytes)
-    string = string_bytes.decode("utf-8")
-    return string
 
 async def is_subscribed(bot, query, channel):
     btn = []
@@ -62,20 +47,16 @@ def get_size(size):
 
 @Client.on_message(filters.command("start") & filters.incoming)
 async def start(client, message):
-    
     if AUTH_CHANNEL:
         try:
             btn = await is_subscribed(client, message, AUTH_CHANNEL)
             if btn:
                 username = (await client.get_me()).username
-                if len(message.command) > 1:
+                if message.command[1]:
                     btn.append([InlineKeyboardButton("♻️ Try Again ♻️", url=f"https://t.me/{username}?start={message.command[1]}")])
                 else:
                     btn.append([InlineKeyboardButton("♻️ Try Again ♻️", url=f"https://t.me/{username}?start=true")])
-                await message.reply_text(
-                    text=f"<b>👋 Hello {message.from_user.mention},\n\nPlease join the channel then click on try again button. 😇</b>",
-                    reply_markup=InlineKeyboardMarkup(btn)
-                )
+                await message.reply_text(text=f"<b>👋 Hello {message.from_user.mention},\n\nPlease join the channel then click on try again button. 😇</b>", reply_markup=InlineKeyboardMarkup(btn))
                 return
         except Exception as e:
             print(e)
@@ -85,15 +66,16 @@ async def start(client, message):
         await client.send_message(LOG_CHANNEL, script.LOG_TEXT.format(message.from_user.id, message.from_user.mention))
     if len(message.command) != 2:
         buttons = [
+            # [
+            # InlineKeyboardButton('💝 sᴜʙsᴄʀɪʙᴇ ᴍʏ ʏᴏᴜᴛᴜʙᴇ ᴄʜᴀɴɴᴇʟ', url='https://youtube.com/@Tech_VJ')
+            # ],
             [
-                InlineKeyboardButton('🔍 sᴜʙsᴘᴏʀᴛ ɢʀᴏᴜᴘ', url='https://t.me/TeamExcellerators'),
-                InlineKeyboardButton('🤖 ᴜᴘᴅᴀᴛᴇ ᴄʜᴀɴɴᴇʟ', url='https://t.me/Excellerators')
-            ],
-            [
-                InlineKeyboardButton('💁‍♀️ Info', callback_data='help'),
-                InlineKeyboardButton('😊 ᴀʙᴏᴜᴛ', callback_data='about')
-            ]
-        ]
+            InlineKeyboardButton('🔍 sᴜᴘᴘᴏʀᴛ ɢʀᴏᴜᴘ', url='https://t.me/TeamExcellerators'),
+            InlineKeyboardButton('🤖 ᴜᴘᴅᴀᴛᴇ ᴄʜᴀɴɴᴇʟ', url='https://t.me/Excellerators')
+            ],[
+            InlineKeyboardButton('💁‍♀️ Info', callback_data='help'),
+            InlineKeyboardButton('😊 ᴀʙᴏᴜᴛ', callback_data='about')
+        ]]
         if CLONE_MODE == True:
             buttons.append([InlineKeyboardButton('🤖 ᴄʀᴇᴀᴛᴇ ʏᴏᴜʀ ᴏᴡɴ ᴄʟᴏɴᴇ ʙᴏᴛ', callback_data='clone')])
         reply_markup = InlineKeyboardMarkup(buttons)
@@ -105,33 +87,8 @@ async def start(client, message):
         )
         return
 
-    data = message.command[1]
     
-    # New branch: if the parameter starts with "text_", treat it as a text deep link
-    if data.startswith("text_"):
-        encoded_text = data[len("text_"):]
-        try:
-            decoded_text = await decode(encoded_text)
-            link_msg = await message.reply_text(f"<b>Here is the saved text:</b>\n\n{decoded_text}")
-            # Auto-delete functionality for text messages
-            if AUTO_DELETE_MODE == True:
-                notice_msg = await client.send_message(
-                    chat_id=message.from_user.id,
-                    text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\nThis message will be deleted within <b><u>{AUTO_DELETE} Minutes</u></b> (Due to Copyright Issues).\n\n<b>Please forward the text to Saved Messages.</b>"
-                )
-                await asyncio.sleep(AUTO_DELETE_TIME)
-                try:
-                    await link_msg.delete()
-                except Exception as e:
-                    logger.error("Error deleting text link message: %s", e)
-                try:
-                    await notice_msg.edit_text("<b>Message deleted successfully. You are always welcome to request again.</b>")
-                except Exception as e:
-                    logger.error("Error editing auto-delete notice: %s", e)
-            return
-        except Exception as e:
-            return await message.reply_text(f"Error decoding text: {e}")
-
+    data = message.command[1]
     try:
         pre, file_id = data.split('_', 1)
     except:
@@ -157,7 +114,6 @@ async def start(client, message):
                 text="<b>Invalid link or Expired link !</b>",
                 protect_content=True
             )
-        
     elif data.split("-", 1)[0] == "BATCH":
         try:
             if not await check_verification(client, message.from_user.id) and VERIFY_MODE == True:
@@ -181,7 +137,7 @@ async def start(client, message):
             file = await client.download_media(file_id)
             try: 
                 with open(file) as file_data:
-                    msgs = json.loads(file_data.read())
+                    msgs=json.loads(file_data.read())
             except:
                 await sts.edit("FAILED")
                 return await client.send_message(LOG_CHANNEL, "UNABLE TO OPEN FILE.")
@@ -191,45 +147,45 @@ async def start(client, message):
         filesarr = []
         for msg in msgs:
             title = msg.get("title")
-            size = get_size(int(msg.get("size", 0)))
-            f_caption = msg.get("caption", "")
+            size=get_size(int(msg.get("size", 0)))
+            f_caption=msg.get("caption", "")
             if BATCH_FILE_CAPTION:
                 try:
-                    f_caption = BATCH_FILE_CAPTION.format(file_name='' if title is None else title, file_size='' if size is None else size, file_caption='' if f_caption is None else f_caption)
+                    f_caption=BATCH_FILE_CAPTION.format(file_name= '' if title is None else title, file_size='' if size is None else size, file_caption='' if f_caption is None else f_caption)
                 except Exception as e:
                     logger.exception(e)
-                    f_caption = f_caption
+                    f_caption=f_caption
             if f_caption is None:
                 f_caption = f"{title}"
             try:
                 if STREAM_MODE == True:
+                    # Create the inline keyboard button with callback_data
                     user_id = message.from_user.id
-                    username = message.from_user.mention 
+                    username =  message.from_user.mention 
+
                     log_msg = await client.send_cached_media(
                         chat_id=LOG_CHANNEL,
                         file_id=msg.get("file_id"),
                     )
-                    fileName = quote_plus(get_name(log_msg))
+                    fileName = {quote_plus(get_name(log_msg))}
                     stream = f"{URL}watch/{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
                     download = f"{URL}{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
-     
+ 
                     await log_msg.reply_text(
                         text=f"•• ʟɪɴᴋ ɢᴇɴᴇʀᴀᴛᴇᴅ ꜰᴏʀ ɪᴅ #{user_id} \n•• ᴜꜱᴇʀɴᴀᴍᴇ : {username} \n\n•• ᖴᎥᒪᗴ Nᗩᗰᗴ : {fileName}",
                         quote=True,
                         disable_web_page_preview=True,
-                        reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🚀 Fast Download 🚀", url=download),
-                             InlineKeyboardButton('🖥️ Stream online 🖥️', url=stream)]
-                        ])
+                        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🚀 Fast Download 🚀", url=download),  # we download Link
+                                                            InlineKeyboardButton('🖥️ Stream online 🖥️', url=stream)]])  # web stream Link
                     )
                 if STREAM_MODE == True:
                     button = [[
-                        InlineKeyboardButton("🚀 Fast Download 🚀", url=download),
+                        InlineKeyboardButton("🚀 Fast Download 🚀", url=download),  # we download Link
                         InlineKeyboardButton('🖥️ Stream online 🖥️', url=stream)
                     ],[
                         InlineKeyboardButton("• ᴡᴀᴛᴄʜ ɪɴ ᴡᴇʙ ᴀᴘᴘ •", web_app=WebAppInfo(url=stream))
                     ]]
-                    reply_markup = InlineKeyboardMarkup(button)
+                    reply_markup=InlineKeyboardMarkup(button)
                 else:
                     reply_markup = None
                 msg = await client.send_cached_media(
@@ -255,13 +211,10 @@ async def start(client, message):
             except Exception as e:
                 logger.warning(e, exc_info=True)
                 continue
-            await asyncio.sleep(1)
+            await asyncio.sleep(1) 
         await sts.delete()
         if AUTO_DELETE_MODE == True:
-            k = await client.send_message(
-                chat_id=message.from_user.id, 
-                text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\n This File will be deleted Within <b><u>{AUTO_DELETE} Minutes</u>  <i></b>(Due to Copyright Issues)</i>.\n\n<b>So,You Are Requested to Forward The File to Saved Messages </b>"
-            )
+            k = await client.send_message(chat_id = message.from_user.id, text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\n This File will be deleted Within <b><u>{AUTO_DELETE} Minutes</u>  <i></b>(Due to Copyright Issues)</i>.\n\n<b>So,You Are Requested to Forward The File to Saved Messages </b>")
             await asyncio.sleep(AUTO_DELETE_TIME)
             for x in filesarr:
                 try:
@@ -271,7 +224,8 @@ async def start(client, message):
             await k.edit_text("<b>File deleted successfully. You are Always wellcomed to Request Again</b>")
         return
 
-    files_ = await get_file_details(file_id)
+
+    files_ = await get_file_details(file_id)           
     if not files_:
         pre, file_id = ((base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))).decode("ascii")).split("_", 1)
         if not await check_verification(client, message.from_user.id) and VERIFY_MODE == True:
@@ -290,33 +244,35 @@ async def start(client, message):
             msg = await client.send_cached_media(
                 chat_id=message.from_user.id,
                 file_id=file_id,
-                protect_content=True if pre == 'filep' else False,
+                protect_content=True if pre == 'filep' else False,  
             )
             filetype = msg.media
             file = getattr(msg, filetype.value)
             title = ' '.join(filter(lambda x: not x.startswith('[') and not x.startswith('@'), file.file_name.split()))
-            size = get_size(file.file_size)
+            size=get_size(file.file_size)
             f_caption = f"<code>{title}</code>"
             if CUSTOM_FILE_CAPTION:
                 try:
-                    f_caption = CUSTOM_FILE_CAPTION.format(file_name='' if title is None else title, file_size='' if size is None else size, file_caption='')
+                    f_caption=CUSTOM_FILE_CAPTION.format(file_name= '' if title is None else title, file_size='' if size is None else size, file_caption='')
                 except:
                     return
+            
             await msg.edit_caption(f_caption)
             if STREAM_MODE == True:
                 g = await msg.reply_text(
                     text=f"•• Generate a fast download or stream link for your file by clicking the button below 👇",
                     quote=True,
                     disable_web_page_preview=True,
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton('🚀 Fast Download / Stream Online🖥️', callback_data=f'generate_stream_link:{file_id}')]
-                    ])
+                    reply_markup=InlineKeyboardMarkup(
+                        [
+                            [
+                                InlineKeyboardButton('🚀 Fast Download / Stream Online🖥️', callback_data=f'generate_stream_link:{file_id}')
+                            ]
+                        ]
+                    )
                 )
             if AUTO_DELETE_MODE == True:
-                k = await client.send_message(
-                    chat_id=message.from_user.id,
-                    text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\n This File will be deleted Within <b><u>{AUTO_DELETE} Minutes</u>  <i></b>(Due to Copyright Issues)</i>.\n\n<b>So,You Are Requested to Forward The File to Saved Messages </b>"
-                )
+                k = await client.send_message(chat_id = message.from_user.id, text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\n This File will be deleted Within <b><u>{AUTO_DELETE} Minutes</u>  <i></b>(Due to Copyright Issues)</i>.\n\n<b>So,You Are Requested to Forward The File to Saved Messages </b>")
                 await asyncio.sleep(AUTO_DELETE_TIME)
                 try:
                     await msg.delete()
@@ -329,16 +285,17 @@ async def start(client, message):
             pass
         return await message.reply('No such file exist.')
 
+    
     files = files_[0]
     title = files.file_name
-    size = get_size(files.file_size)
-    f_caption = files.caption
+    size=get_size(files.file_size)
+    f_caption=files.caption
     if CUSTOM_FILE_CAPTION:
         try:
-            f_caption = CUSTOM_FILE_CAPTION.format(file_name='' if title is None else title, file_size='' if size is None else size, file_caption='' if f_caption is None else f_caption)
+            f_caption=CUSTOM_FILE_CAPTION.format(file_name= '' if title is None else title, file_size='' if size is None else size, file_caption='' if f_caption is None else f_caption)
         except Exception as e:
             logger.exception(e)
-            f_caption = f_caption
+            f_caption=f_caption
     if f_caption is None:
         f_caption = f"{files.file_name}"
     if not await check_verification(client, message.from_user.id) and VERIFY_MODE == True:
@@ -364,21 +321,24 @@ async def start(client, message):
             text=f"**••ɢᴇɴᴇʀᴀᴛᴇ ᴏɴʟɪɴᴇ sᴛʀᴇᴀᴍ ʟɪɴᴋ ᴏғ ʏᴏᴜʀ ғɪʟᴇ & ғᴀsᴛ ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋ By ᴄʟɪᴄᴋɪɴɢ ᴏɴ ʙᴇʟᴏᴡ ʙᴜᴛᴛᴏɴ 👇**",
             quote=True,
             disable_web_page_preview=True,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton('🚀 Fast Download / Watch Online🖥️', callback_data=f'generate_stream_link:{file_id}')]
-            ])
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton('🚀 Fast Download / Watch Online🖥️', callback_data=f'generate_stream_link:{file_id}')
+                    ]
+                ]
+            )
         )
     if AUTO_DELETE_MODE == True:
-        k = await client.send_message(
-            chat_id=message.from_user.id,
-            text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\n This File will be deleted Within <b><u>{AUTO_DELETE} Minutes</u>  <i></b>(Due to Copyright Issues)</i>.\n\n<b>So,You Are Requested to Forward The File to Saved Messages </b>"
-        )
+        k = await client.send_message(chat_id = message.from_user.id, text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\n This File will be deleted Within <b><u>{AUTO_DELETE} Minutes</u>  <i></b>(Due to Copyright Issues)</i>.\n\n<b>So,You Are Requested to Forward The File to Saved Messages </b>")
         await asyncio.sleep(AUTO_DELETE_TIME)
         try:
             await x.delete()
         except:
             pass
-        await k.edit_text("<b>File deleted successfully!</b>")
+        await k.edit_text("<b> File deleted successfully!</b>")       
+        
+
 
 @Client.on_message(filters.command('api') & filters.private)
 async def shortener_api_handler(client, m: Message):
