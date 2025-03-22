@@ -1,3 +1,4 @@
+
 import os
 import logging
 import random
@@ -44,9 +45,12 @@ def get_size(size):
         size /= 1024.0
     return "%.2f %s" % (size, units[i])
 
+# start cammand or incoming message
+
 
 @Client.on_message(filters.command("start") & filters.incoming)
 async def start(client, message):
+    
     if AUTH_CHANNEL:
         try:
             btn = await is_subscribed(client, message, AUTH_CHANNEL)
@@ -76,6 +80,7 @@ async def start(client, message):
             InlineKeyboardButton('💁‍♀️ Info', callback_data='help'),
             InlineKeyboardButton('😊 ᴀʙᴏᴜᴛ', callback_data='about')
         ]]
+        
         if CLONE_MODE == True:
             buttons.append([InlineKeyboardButton('🤖 ᴄʀᴇᴀᴛᴇ ʏᴏᴜʀ ᴏᴡɴ ᴄʟᴏɴᴇ ʙᴏᴛ', callback_data='clone')])
         reply_markup = InlineKeyboardMarkup(buttons)
@@ -114,6 +119,7 @@ async def start(client, message):
                 text="<b>Invalid link or Expired link !</b>",
                 protect_content=True
             )
+            
     elif data.split("-", 1)[0] == "BATCH":
         try:
             if not await check_verification(client, message.from_user.id) and VERIFY_MODE == True:
@@ -338,7 +344,7 @@ async def start(client, message):
             pass
         await k.edit_text("<b> File deleted successfully!</b>")       
         
-
+# start cammand or incoming message
 
 @Client.on_message(filters.command('api') & filters.private)
 async def shortener_api_handler(client, m: Message):
@@ -513,3 +519,42 @@ async def cb_handler(client: Client, query: CallbackQuery):
             print(e)  # print the error message
             await query.answer(f"☣something went wrong\n\n{e}", show_alert=True)
             return
+
+
+@Client.on_message(filters.command("start"))
+async def start_handler(bot: Client, message):
+    if len(message.command) > 1:
+        param = message.command[1]
+        if param.startswith("text_"):
+            encoded_text = param[len("text_"):]
+            # Add missing padding if needed (Base64 strings require a length multiple of 4)
+            missing_padding = len(encoded_text) % 4
+            if missing_padding:
+                encoded_text += "=" * (4 - missing_padding)
+            try:
+                decoded_text = base64.urlsafe_b64decode(encoded_text.encode("ascii")).decode("utf-8")
+                # Send the saved text as a reply and store the message object in link_msg.
+                link_msg = await message.reply_text(f"<b>Here is the saved text:</b>\n\n{decoded_text}")
+                
+                # If auto-delete mode is enabled, send a notice, wait, then delete the link message.
+                if AUTO_DELETE_MODE == True:
+                    notice_msg = await bot.send_message(
+                        chat_id=message.from_user.id, 
+                        text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\nThis message will be deleted within <b><u>{AUTO_DELETE} Minutes</u></b> (Due to Copyright Issues).\n\n<b>Please forward the text to Saved Messages.</b>"
+                    )
+                    await asyncio.sleep(AUTO_DELETE_TIME)
+                    try:
+                        await link_msg.delete()
+                    except Exception as e:
+                        logger.error("Error deleting text link message: %s", e)
+                    try:
+                        await notice_msg.edit_text("<b>Message deleted successfully. You are always welcome to request again.</b>")
+                    except Exception as e:
+                        logger.error("Error editing auto-delete notice: %s", e)
+                return
+            except Exception as e:
+                return await message.reply_text(f"Error decoding text: {e}")
+        else:
+            return await message.reply_text("Parameter not recognized.")
+    else:
+        return await message.reply_text("Welcome! Use the /link command to generate a shareable link.")
