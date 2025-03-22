@@ -15,6 +15,16 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# added from chat gpt 
+async def encode(string):
+    # Using ASCII as in your reference; change to "utf-8" if needed.
+    string_bytes = string.encode("ascii")
+    base64_bytes = base64.urlsafe_b64encode(string_bytes)
+    base64_string = base64_bytes.decode("ascii").strip("=")
+    return base64_string
+
+
+
 async def allowed(_, __, message):
     if PUBLIC_FILE_STORE:
         return True
@@ -76,14 +86,17 @@ async def gen_link_s(bot, message):
             await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🔗 ᴏʀɪɢɪɴᴀʟ ʟɪɴᴋ :- {share_link}</b>")
     
        # If the replied message is text or has a caption (formatted text), generate a deep link for it.
+       # If the replied message is text or has a caption (formatted text), generate a deep link for it.
     elif replied.text or replied.caption or getattr(replied, 'text_html', None):
         # Use text_html if available, otherwise fallback to text or caption.
         text_content = replied.text if replied.text else (replied.caption if replied.caption else replied.text_html)
         text_content = text_content.strip()
         prefix = "text_"
-        encoded_text = base64.urlsafe_b64encode(text_content.encode("utf-8")).decode("ascii").strip("=")
+        # Use the asynchronous encode function to encode the text
+        encoded_text = await encode(text_content)
         deep_link = f"https://t.me/{username}?start={prefix}{encoded_text}"
         link_msg = await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ text link:</b>\n\n🔗 Link: {deep_link}")
+
 
 
 
