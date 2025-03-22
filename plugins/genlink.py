@@ -55,7 +55,7 @@ async def gen_link_s(bot, message):
     if replied.media:
         file_type = replied.media
         if file_type not in [enums.MessageMediaType.VIDEO, enums.MessageMediaType.AUDIO, enums.MessageMediaType.DOCUMENT]:
-            return await message.reply("**ʀᴇᴘʟʏ ᴛᴏ ᴀ sᴜᴘᴘᴏʀᴛᴇᴅ ᴍᴇᴅɪᴀ**")
+            return await message.reply("**ʀᴇᴘʟʏ ᴛᴏ sᴜᴘᴘᴏʀᴛᴇᴅ ᴍᴇᴅɪᴀ**")
         if message.has_protected_content and message.chat.id not in ADMINS:
             return await message.reply("okDa")
 
@@ -75,17 +75,15 @@ async def gen_link_s(bot, message):
         else:
             await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🔗 ᴏʀɪɢɪɴᴀʟ ʟɪɴᴋ :- {share_link}</b>")
     
-    # If the replied message is text or has a caption (formatted text), generate a deep link for it.
-    elif replied.text or replied.caption:
-        text_content = replied.text if replied.text else replied.caption
+       # If the replied message is text or has a caption (formatted text), generate a deep link for it.
+    elif replied.text or replied.caption or getattr(replied, 'text_html', None):
+        # Use text_html if available, otherwise fallback to text or caption.
+        text_content = replied.text if replied.text else (replied.caption if replied.caption else replied.text_html)
         text_content = text_content.strip()
         prefix = "text_"
         encoded_text = base64.urlsafe_b64encode(text_content.encode("utf-8")).decode("ascii").strip("=")
         deep_link = f"https://t.me/{username}?start={prefix}{encoded_text}"
         link_msg = await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ text link:</b>\n\n🔗 Link: {deep_link}")
-        
-    else:
-        return await message.reply("Unsupported message type. Please reply to a media or text message.")
 
 
 
