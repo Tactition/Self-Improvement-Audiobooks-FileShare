@@ -20,6 +20,7 @@ logging.getLogger("aiohttp").setLevel(logging.ERROR)
 logging.getLogger("aiohttp.web").setLevel(logging.ERROR)
 
 
+
 from pyrogram import Client, __version__
 from pyrogram.raw.all import layer
 from config import LOG_CHANNEL, ON_HEROKU, CLONE_MODE, PORT
@@ -38,17 +39,23 @@ from TechVJ.utils.keepalive import ping_server
 from TechVJ.bot.clients import initialize_clients
 
 
+
 ppath = "plugins/*.py"
 files = glob.glob(ppath)
+StreamBot.start()
+
+# Fix for the event loop deprecation warning - minimal change
+try:
+    loop = asyncio.get_running_loop()
+except RuntimeError:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
 
 
 async def start():
     print('\n')
     print('Initalizing Tactitions file store Bot')
-    
-    # Start the bot here inside the async function
-    StreamBot.start()
-    
     bot_info = await StreamBot.get_me()
     StreamBot.username = bot_info.username
     await initialize_clients()
@@ -83,6 +90,6 @@ async def start():
 
 if __name__ == '__main__':
     try:
-        asyncio.run(start())
+        loop.run_until_complete(start())
     except KeyboardInterrupt:
         logging.info('Service Stopped Bye 👋')
